@@ -1,0 +1,6 @@
+category,malicious_examples,baseline_recall,normalized_recall
+appended_override,133,0.7368421052631579,0.706766917293233
+indirect_injection,190,0.7263157894736842,0.6842105263157895
+multilingual,8,0.125,0.125
+obfuscation,300,0.18,1.0
+payload_split,180,0.8777777777777778,0.8388888888888889

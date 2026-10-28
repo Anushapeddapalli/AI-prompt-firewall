@@ -1,0 +1,2 @@
+model,test_examples,threshold,accuracy,malicious_precision,malicious_recall,malicious_f1,false_positive_rate,false_negative_rate,true_negative,false_positive,false_negative,true_positive,rule_triggered_count
+hybrid,1229,0.6,0.9983726606997559,0.997539975399754,1.0,0.9987684729064039,0.004784688995215311,0.0,416,2,0,811,0
