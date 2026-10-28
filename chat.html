@@ -1,0 +1,276 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Prompt Firewall</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #10131a;
+      color: #edf0f7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 18px 24px;
+      border-bottom: 1px solid #303642;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      background: #244b3c;
+      padding: 10px;
+      border-radius: 12px;
+      font-size: 22px;
+    }
+
+    h1 { font-size: 18px; margin: 0; }
+    .subtitle { color: #a5afc0; font-size: 12px; margin-top: 3px; }
+
+    #chat {
+      flex: 1;
+      width: min(820px, 100%);
+      margin: 0 auto;
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .welcome {
+      text-align: center;
+      margin: auto 0;
+      color: #c6cede;
+      padding: 35px 10px;
+    }
+
+    .welcome h2 { color: #fff; font-size: 28px; }
+    .message { max-width: 88%; line-height: 1.55; }
+    .user { align-self: flex-end; }
+    .assistant { align-self: flex-start; }
+
+    .bubble {
+      padding: 13px 16px;
+      border-radius: 16px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .user .bubble { background: #304b75; }
+    .assistant .bubble {
+      background: #202631;
+      border: 1px solid #343c49;
+    }
+
+    .status {
+      font-size: 11px;
+      margin: 0 0 5px 4px;
+      color: #a5afc0;
+    }
+
+    .blocked .bubble {
+      border-color: #a83d4b;
+      background: #351e26;
+    }
+
+    .blocked .status { color: #ff8994; }
+    .accepted .status { color: #81d9aa; }
+
+    .composer-wrap {
+      padding: 14px 18px 20px;
+      border-top: 1px solid #303642;
+      background: #151922;
+    }
+
+    form {
+      max-width: 820px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      resize: vertical;
+      min-height: 52px;
+      max-height: 180px;
+      border: 1px solid #414958;
+      border-radius: 14px;
+      padding: 14px;
+      background: #202631;
+      color: white;
+      font: inherit;
+    }
+
+    textarea:focus { outline: 2px solid #7398dc; }
+    button {
+      border: 0;
+      border-radius: 12px;
+      background: #6d91d5;
+      color: #10131a;
+      padding: 14px 20px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.5; cursor: wait; }
+    .note {
+      text-align: center;
+      color: #929daf;
+      font-size: 11px;
+      margin: 10px 0 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🛡️</div>
+    <div>
+      <h1>AI Prompt Firewall</h1>
+      <div class="subtitle">Protected chat · Local Qwen model</div>
+    </div>
+  </header>
+
+  <main id="chat" aria-live="polite">
+    <div class="welcome" id="welcome">
+      <div style="font-size:42px">🛡️</div>
+      <h2>Chat with confidence</h2>
+      <p>Your prompt is checked by the firewall before it reaches the AI.</p>
+      <p class="subtitle">Try asking a question to get started.</p>
+    </div>
+  </main>
+
+  <div class="composer-wrap">
+    <form id="form">
+      <textarea id="prompt" maxlength="10000"
+        placeholder="Message your local AI..."
+        aria-label="Your message" required></textarea>
+      <button id="send" type="submit">Send</button>
+    </form>
+    <p class="note">
+      Local model responses can be inaccurate. Detection does not guarantee safety.
+    </p>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("prompt");
+    const send = document.getElementById("send");
+    const welcome = document.getElementById("welcome");
+
+    function addMessage(role, text, status = "") {
+      if (welcome) welcome.remove();
+
+      const wrapper = document.createElement("div");
+      wrapper.className = `message ${role}`;
+
+      if (status) {
+        const label = document.createElement("div");
+        label.className = "status";
+        label.textContent = status;
+        wrapper.appendChild(label);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      wrapper.appendChild(bubble);
+      chat.appendChild(wrapper);
+      wrapper.scrollIntoView({ behavior: "smooth", block: "end" });
+      return wrapper;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const prompt = input.value.trim();
+      if (!prompt || send.disabled) return;
+
+      addMessage("user", prompt);
+      input.value = "";
+      send.disabled = true;
+      send.textContent = "Checking...";
+
+      const waiting = addMessage("assistant", "Checking your prompt...");
+      let waitingRemoved = false;
+
+      function removeWaiting() {
+        if (!waitingRemoved) {
+          waiting.remove();
+          waitingRemoved = true;
+        }
+      }
+
+      try {
+        const response = await fetch("/gateway", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+
+        const data = await response.json();
+        removeWaiting();
+
+        if (response.status === 403) {
+          const blocked = addMessage(
+            "assistant blocked",
+            "This message was blocked by the Prompt Firewall. It was not forwarded to the LLM."
+          );
+          blocked.classList.add("blocked");
+          const details = data.detail?.detection;
+          if (details) {
+            const label = blocked.querySelector(".status");
+            if (label) label.textContent =
+              `BLOCKED · ${details.detection_path} · score ${details.risk_score}`;
+          }
+        } else if (response.ok) {
+          const detection = data.detection || {};
+          const answer = addMessage(
+            "assistant accepted",
+            data.downstream_response || "The model returned an empty response.",
+            `FIREWALL · ${detection.label || "accepted"} · ${detection.detection_path || "detector"}`
+          );
+        } else {
+          addMessage(
+            "assistant blocked",
+            typeof data.detail === "string"
+              ? data.detail
+              : JSON.stringify(data.detail || data),
+            `REQUEST FAILED · HTTP ${response.status}`
+          );
+        }
+      } catch (error) {
+        removeWaiting();
+        addMessage(
+          "assistant blocked",
+          "Could not reach the firewall API. Check that the FastAPI server is running and try again.",
+          "CONNECTION ERROR"
+        );
+      } finally {
+        send.disabled = false;
+        send.textContent = "Send";
+        input.focus();
+      }
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+  </script>
+</body>
+</html>
