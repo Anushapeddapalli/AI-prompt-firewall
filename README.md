@@ -172,5 +172,4 @@ This project uses the **Prompt Injection Detection Dataset** by Mirza Akhi.
 - **DOI:** [https://doi.org/10.5281/zenodo.20817277](https://doi.org/10.5281/zenodo.20817277)
 - **Dataset license:** Creative Commons Attribution 4.0 International (CC BY 4.0).
 
-When redistributing the dataset, retain appropriate attribution, link to the license, and indicate whether modifications were made. Verify the license and provenance of any additional files in `data/`, including `prompts.csv`, before publishing them.
 
